@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PEPCO-DC Rate Schedule Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .floating-shapes {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .shape {
+            position: absolute;
+            border-radius: 50%;
+            background: linear-gradient(45deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .shape:nth-child(1) {
+            width: 120px;
+            height: 120px;
+            top: 10%;
+            left: 80%;
+            animation-delay: 0s;
+        }
+
+        .shape:nth-child(2) {
+            width: 80px;
+            height: 80px;
+            top: 70%;
+            left: 10%;
+            animation-delay: 2s;
+        }
+
+        .shape:nth-child(3) {
+            width: 60px;
+            height: 60px;
+            top: 20%;
+            left: 20%;
+            animation-delay: 4s;
+        }
+
+        .shape:nth-child(4) {
+            width: 100px;
+            height: 100px;
+            top: 60%;
+            left: 75%;
+            animation-delay: 1s;
+        }
+
+        .shape:nth-child(5) {
+            width: 40px;
+            height: 40px;
+            top: 30%;
+            left: 60%;
+            animation-delay: 3s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(180deg); }
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 30px;
+            box-shadow: 
+                0 30px 60px rgba(0, 0, 0, 0.15),
+                0 0 0 1px rgba(255, 255, 255, 0.2);
+            overflow: hidden;
+            position: relative;
+            z-index: 2;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 25%, #0984e3 50%, #6c5ce7 75%, #fd79a8 100%);
+            background-size: 300% 300%;
+            animation: gradientShift 8s ease infinite;
+            color: white;
+            padding: 50px 40px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="75" cy="75" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="50" cy="10" r="1" fill="rgba(255,255,255,0.05)"/><circle cx="10" cy="90" r="1" fill="rgba(255,255,255,0.05)"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+            opacity: 0.3;
+        }
+
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .header h1 {
+            font-size: 3.5rem;
+            margin-bottom: 20px;
+            font-weight: 800;
+            letter-spacing: 3px;
+            text-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            position: relative;
+            z-index: 1;
+        }
+
+        .header p {
+            font-size: 1.4rem;
+            opacity: 0.95;
+            font-weight: 300;
+            position: relative;
+            z-index: 1;
+        }
+
+        .main-content {
+            padding: 50px;
+        }
+
+        .controls {
+            padding: 30px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(248,249,250,0.9) 100%);
+            border-radius: 25px;
+            backdrop-filter: blur(15px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 25px;
+            margin-bottom: 40px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .search-box {
+            padding: 18px 30px;
+            border: 3px solid transparent;
+            background: linear-gradient(white, white) padding-box,
+                       linear-gradient(135deg, #667eea, #764ba2) border-box;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            width: 400px;
+            transition: all 0.4s ease;
+            font-weight: 600;
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.1);
+        }
+
+        .search-box:focus {
+            outline: none;
+            transform: scale(1.02);
+            box-shadow: 0 15px 35px rgba(102, 126, 234, 0.3);
+        }
+
+        .search-box::placeholder {
+            color: #6c757d;
+            font-weight: 500;
+        }
+
+        .download-btn {
+            background: linear-gradient(135deg, #00b894 0%, #00cec9 50%, #74b9ff 100%);
+            color: white;
+            border: none;
+            padding: 18px 35px;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            box-shadow: 0 10px 30px rgba(0, 184, 148, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .download-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255,255,255,0.3);
+            border-radius: 50%;
+            transition: all 0.4s ease;
+            transform: translate(-50%, -50%);
+        }
+
+        .download-btn:hover::before {
+            width: 350px;
+            height: 350px;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-4px) scale(1.05);
+            box-shadow: 0 20px 45px rgba(0, 184, 148, 0.4);
+        }
+
+        .table-container {
+            overflow-x: auto;
+            border-radius: 30px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+            margin-bottom: 50px;
+            background: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            font-size: 1.05rem;
+        }
+
+        thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 30%, #f093fb 60%, #ff6b6b 100%);
+            background-size: 300% 300%;
+            animation: gradientShift 10s ease infinite;
+            color: white;
+        }
+
+        th {
+            padding: 28px 25px;
+            text-align: left;
+            font-weight: 800;
+            font-size: 1.1rem;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            border-right: 1px solid rgba(255, 255, 255, 0.2);
+            position: relative;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        th::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+        }
+
+        th:last-child {
+            border-right: none;
+        }
+
+        tbody tr {
+            transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            border-bottom: 2px solid rgba(102, 126, 234, 0.1);
+        }
+
+        tbody tr:nth-child(even) {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.04) 0%, rgba(240, 147, 251, 0.04) 100%);
+        }
+
+        tbody tr:hover {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%);
+            transform: translateY(-3px) scale(1.01);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+        }
+
+        td {
+            padding: 25px 25px;
+            border-right: 1px solid rgba(102, 126, 234, 0.1);
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        td:last-child {
+            border-right: none;
+        }
+
+        .schedule-name {
+            font-weight: 800;
+            color: white;
+            background: linear-gradient(135deg, #74b9ff 0%, #0984e3 50%, #667eea 100%);
+            border-radius: 20px;
+            padding: 15px 22px;
+            font-size: 1rem;
+            text-align: center;
+            box-shadow: 0 8px 25px rgba(116, 185, 255, 0.4);
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .schedule-name:hover {
+            transform: scale(1.05);
+            box-shadow: 0 12px 35px rgba(116, 185, 255, 0.5);
+        }
+
+        .currency {
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-weight: 700;
+            text-align: right;
+            color: #2d3436;
+            background: linear-gradient(135deg, rgba(0, 184, 148, 0.1), rgba(0, 206, 201, 0.15));
+            border-radius: 15px;
+            padding: 12px 16px;
+            box-shadow: 0 4px 15px rgba(0, 184, 148, 0.1);
+            transition: all 0.3s ease;
+            font-size: 1.05rem;
+        }
+
+        .currency:hover {
+            background: linear-gradient(135deg, rgba(0, 184, 148, 0.2), rgba(0, 206, 201, 0.25));
+            transform: scale(1.02);
+        }
+
+        .total-column {
+            background: linear-gradient(135deg, #00b894 0%, #00cec9 50%, #74b9ff 100%) !important;
+            color: white !important;
+            font-weight: 900 !important;
+            font-size: 1.3rem !important;
+            text-align: center !important;
+            box-shadow: 0 8px 25px rgba(0, 184, 148, 0.4) !important;
+            border-radius: 15px !important;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+        }
+
+        .total-column:hover {
+            transform: scale(1.05) !important;
+            box-shadow: 0 15px 35px rgba(0, 184, 148, 0.5) !important;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            padding: 40px;
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 50%, #ff9a9e 100%);
+            border-radius: 30px;
+            flex-wrap: wrap;
+            gap: 30px;
+            box-shadow: 0 20px 45px rgba(252, 182, 159, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .stat-item {
+            text-align: center;
+            flex: 1;
+            min-width: 200px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 35px 25px;
+            border-radius: 25px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            transition: all 0.4s ease;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .stat-item:hover {
+            transform: translateY(-8px) scale(1.03);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+        }
+
+        .stat-value {
+            font-size: 2.8rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, #667eea, #764ba2, #f093fb);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 12px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .stat-label {
+            font-size: 1.1rem;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 700;
+        }
+
+        .feature-highlights {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin: 50px 0;
+        }
+
+        .feature-card {
+            background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(248,249,250,0.9) 100%);
+            backdrop-filter: blur(15px);
+            border-radius: 25px;
+            padding: 35px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            transition: all 0.4s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .feature-title {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .feature-description {
+            color: #6c757d;
+            font-size: 1rem;
+            line-height: 1.6;
+            font-weight: 500;
+        }
+
+        @media (max-width: 1024px) {
+            .search-box {
+                width: 100%;
+                margin-bottom: 15px;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+                text-align: center;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2.5rem;
+            }
+            
+            .header p {
+                font-size: 1.1rem;
+            }
+            
+            .main-content {
+                padding: 30px 25px;
+            }
+            
+            th, td {
+                padding: 18px 12px;
+                font-size: 0.9rem;
+            }
+            
+            .stat-item {
+                min-width: 160px;
+                padding: 25px 20px;
+            }
+            
+            .stat-value {
+                font-size: 2.2rem;
+            }
+            
+            .table-container {
+                border-radius: 20px;
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 1.2s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        ::-webkit-scrollbar {
+            width: 14px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 10px;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.2);
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #764ba2, #f093fb);
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="floating-shapes">
+        <div class="shape"></div>
+        <div class="shape"></div>
+        <div class="shape"></div>
+        <div class="shape"></div>
+        <div class="shape"></div>
+    </div>
+
+    <div class="container fade-in">
+        <div class="header">
+            <h1>⚡ PEPCO-DC Rate Schedule</h1>
+            <p>🌟 Comprehensive Utility Rate Analysis Dashboard</p>
+        </div>
+        
+        <div class="main-content">
+            <div class="controls">
+                <input type="text" class="search-box" placeholder="🔍 Search rate schedules..." id="searchInput">
+                <button class="download-btn pulse" onclick="downloadExcel()">
+                    📊 Download Excel Report
+                </button>
+            </div>
+
+            <div class="table-container">
+                <table id="rateTable">
+                    <thead>
+                        <tr>
+                            <th>Zone PEPCO-DC Rate Schedule</th>
+                            <th>Intermediate Charges</th>
+                            <th>Admin Charges</th>
+                            <th>Transmission Charges</th>
+                            <th>Capacity Charges</th>
+                            <th>Transmission Charges (Melissa Report)</th>
+                            <th class="total-column">Total PTC</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <tr>
+                            <td class="schedule-name">Schedule R</td>
+                            <td class="currency">$0.12800</td>
+                            <td class="currency">$0.00320</td>
+                            <td class="currency">$0.01751</td>
+                            <td class="currency">$0.01125</td>
+                            <td class="currency">$0.00626</td>
+                            <td class="currency total-column">$0.16622</td>
+                        </tr>
+                        <tr>
+                            <td class="schedule-name">Schedule MMA</td>
+                            <td class="currency">$0.12432</td>
+                            <td class="currency">$0.00320</td>
+                            <td class="currency">$0.01526</td>
+                            <td class="currency">$0.01125</td>
+                            <td class="currency">$0.00626</td>
+                            <td class="currency total-column">$0.16029</td>
+                        </tr>
+                        <tr>
+                            <td class="schedule-name">Schedule GS - ND</td>
+                            <td class="currency">$0.12602</td>
+                            <td class="currency">$0.00450</td>
+                            <td class="currency">$0.01277</td>
+                            <td class="currency">$0.01125</td>
+                            <td class="currency">$0.00626</td>
+                            <td class="currency total-column">$0.16080</td>
+                        </tr>
+                        <tr>
+                            <td class="schedule-name">Schedule T</td>
+                            <td class="currency">$0.12602</td>
+                            <td class="currency">$0.00450</td>
+                            <td class="currency">$0.01096</td>
+                            <td class="currency">$0.01125</td>
+                            <td class="currency">$0.00626</td>
+                            <td class="currency total-column">$0.15899</td>
+                        </tr>
+                        <tr>
+                            <td class="schedule-name">Schedule TS</td>
+                            <td class="currency">$0.12602</td>
+                            <td class="currency">$0.00450</td>
+                            <td class="currency">$0.00763</td>
+                            <td class="currency">$0.01125</td>
+                            <td class="currency">$0.00626</td>
+                            <td class="currency total-column">$0.15566</td>
+                        </tr>
+                        <tr>
+                            <td class="schedule-name">Schedule TN</td>
+                            <td class="currency">$0.12602</td>
+                            <td class="currency">$0.00450</td>
+                            <td class="currency">$0.00766</td>
+                            <td class="currency">$0.01125</td>
+                            <td class="currency">$0.00626</td>
+                            <td class="currency total-column">$0.15569</td>
+                        </tr>
+                        <tr>
+                            <td class="schedule-name">Schedule SL</td>
+                            <td class="currency">$0.12602</td>
+                            <td class="currency">$0.00450</td>
+                            <td class="currency">$0.00000</td>
+                            <td class="currency">$0.01125</td>
+                            <td class="currency">$0.00626</td>
+                            <td class="currency total-column">$0.14803</td>
+                        </tr>
+                        <tr>
+                            <td class="schedule-name">Schedule OL-LED</td>
+                            <td class="currency">$0.12602</td>
+                            <td class="currency">$0.00450</td>
+                            <td class="currency">$0.00000</td>
+                            <td class="currency">$0.01125</td>
+                            <td class="currency">$0.00626</td>
+                            <td class="currency total-column">$0.14803</td>
+                        </tr>
+                        <tr>
+                            <td class="schedule-name">Schedule GS – LV</td>
+                            <td class="currency">$0.13314</td>
+                            <td class="currency">$0.00400</td>
+                            <td class="currency">$0.01275</td>
+                            <td class="currency">$0.01125</td>
+                            <td class="currency">$0.00626</td>
+                            <td class="currency total-column">$0.16740</td>
+                        </tr>
+                        <tr>
+                            <td class="schedule-name">Schedule GS 3A</td>
+                            <td class="currency">$0.13314</td>
+                            <td class="currency">$0.00400</td>
+                            <td class="currency">$0.01170</td>
+                            <td class="currency">$0.01125</td>
+                            <td class="currency">$0.00626</td>
+                            <td class="currency total-column">$0.16635</td>
+                        </tr>
+                        <tr>
+                            <td class="schedule-name">Schedule GT LV</td>
+                            <td class="currency">$0.13608</td>
+                            <td class="currency">$0.00400</td>
+                            <td class="currency">$0.00398</td>
+                            <td class="currency">$0.01125</td>
+                            <td class="currency">$0.00626</td>
+                            <td class="currency total-column">$0.16157</td>
+                        </tr>
+                        <tr>
+                            <td class="schedule-name">Schedule GT 3A</td>
+                            <td class="currency">$0.14524</td>
+                            <td class="currency">$0.00400</td>
+                            <td class="currency">$0.00416</td>
+                            <td class="currency">$0.01125</td>
+                            <td class="currency">$0.00626</td>
+                            <td class="currency total-column">$0.17091</td>
+                        </tr>
+                        <tr>
+                            <td class="schedule-name">Schedule GT 3B</td>
+                            <td class="currency">$0.14134</td>
+                            <td class="currency">$0.00400</td>
+                            <td class="currency">$0.00241</td>
+                            <td class="currency">$0.01125</td>
+                            <td class="currency">$0.00626</td>
+                            <td class="currency total-column">$0.16526</td>
+                        </tr>
+                        <tr>
+                            <td class="schedule-name">Schedule RT</td>
+                            <td class="currency">$0.13766</td>
+                            <td class="currency">$0.00400</td>
+                            <td class="currency">$0.00501</td>
+                            <td class="currency">$0.01125</td>
+                            <td class="currency">$0.00626</td>
+                            <td class="currency total-column">$0.16418</td>
+                        </tr>
+                        <tr>
+                            <td class="schedule-name">Schedule MGT LV</td>
+                            <td class="currency">$0.13608</td>
+                            <td class="currency">$0.00400</td>
+                            <td class="currency">$0.00399</td>
+                            <td class="currency">$0.01125</td>
+                            <td class="currency">$0.00626</td>
+                            <td class="currency total-column">$0.16158</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-value" id="totalSchedules">15</div>
+                    <div class="stat-label">Total Schedules</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="avgRate">$0.16</div>
+                    <div class="stat-label">Average Total PTC</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="highestRate">$0.17091</div>
+                    <div class="stat-label">Highest Rate</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="lowestRate">$0.14803</div>
+                    <div class="stat-label">Lowest Rate</div>
+                </div>
+            </div>
+
+            <div class="feature-highlights">
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <div class="feature-title">Real-Time Analysis</div>
+                    <div class="feature-description">Dynamic rate comparison and cost analysis across all PEPCO-DC schedules with instant calculations.</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <div class="feature-title">Excel Export</div>
+                    <div class="feature-description">Download comprehensive rate data in Excel format for detailed analysis and reporting.</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔍</div>
+                    <div class="feature-title">Smart Search</div>
+                    <div class="feature-description">Quickly find specific rate schedules with intelligent search functionality.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            const rows = document.querySelectorAll('#tableBody tr');
+            
+            rows.forEach(row => {
+                const scheduleCell = row.querySelector('.schedule-name');
+                if (scheduleCell) {
+                    const scheduleName = scheduleCell.textContent.toLowerCase();
+                    if (scheduleName.includes(searchTerm)) {
+                        row.style.display = '';
+                        row.style.animation = 'fadeIn 0.5s ease';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                }
+            });
+        });
+
+        // Excel download functionality
+        function downloadExcel() {
+            try {
+                // Check if XLSX is loaded
+                if (typeof XLSX === 'undefined') {
+                    alert('Excel library is still loading. Please try again in a moment.');
+                    return;
+                }
+
+                // Create data array manually for better control
+                const data = [
+                    ['Zone PEPCO-DC Rate Schedule', 'Intermediate Charges', 'Admin Charges', 'Transmission Charges', 'Capacity Charges', 'Transmission Charges (Melissa Report)', 'Total PTC'],
+                    ['Schedule R', 0.12800, 0.00320, 0.01751, 0.01125, 0.00626, 0.16622],
+                    ['Schedule MMA', 0.12432, 0.00320, 0.01526, 0.01125, 0.00626, 0.16029],
+                    ['Schedule GS - ND', 0.12602, 0.00450, 0.01277, 0.01125, 0.00626, 0.16080],
+                    ['Schedule T', 0.12602, 0.00450, 0.01096, 0.01125, 0.00626, 0.15899],
+                    ['Schedule TS', 0.12602, 0.00450, 0.00763, 0.01125, 0.00626, 0.15566],
+                    ['Schedule TN', 0.12602, 0.00450, 0.00766, 0.01125, 0.00626, 0.15569],
+                    ['Schedule SL', 0.12602, 0.00450, 0.00000, 0.01125, 0.00626, 0.14803],
+                    ['Schedule OL-LED', 0.12602, 0.00450, 0.00000, 0.01125, 0.00626, 0.14803],
+                    ['Schedule GS – LV', 0.13314, 0.00400, 0.01275, 0.01125, 0.00626, 0.16740],
+                    ['Schedule GS 3A', 0.13314, 0.00400, 0.01170, 0.01125, 0.00626, 0.16635],
+                    ['Schedule GT LV', 0.13608, 0.00400, 0.00398, 0.01125, 0.00626, 0.16157],
+                    ['Schedule GT 3A', 0.14524, 0.00400, 0.00416, 0.01125, 0.00626, 0.17091],
+                    ['Schedule GT 3B', 0.14134, 0.00400, 0.00241, 0.01125, 0.00626, 0.16526],
+                    ['Schedule RT', 0.13766, 0.00400, 0.00501, 0.01125, 0.00626, 0.16418],
+                    ['Schedule MGT LV', 0.13608, 0.00400, 0.00399, 0.01125, 0.00626, 0.16158]
+                ];
+
+                // Create workbook and worksheet
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.aoa_to_sheet(data);
+                
+                // Set column widths
+                ws['!cols'] = [
+                    { width: 25 }, // Schedule name
+                    { width: 18 }, // Intermediate charges
+                    { width: 15 }, // Admin charges
+                    { width: 18 }, // Transmission charges
+                    { width: 16 }, // Capacity charges
+                    { width: 28 }, // Transmission charges (Melissa)
+                    { width: 12 }  // Total PTC
+                ];
+
+                // Add some basic styling
+                const range = XLSX.utils.decode_range(ws['!ref']);
+                
+                // Style header row
+                for (let col = range.s.c; col <= range.e.c; col++) {
+                    const headerCell = ws[XLSX.utils.encode_cell({r: 0, c: col})];
+                    if (headerCell) {
+                        headerCell.s = {
+                            font: { bold: true, color: { rgb: "FFFFFF" } },
+                            fill: { fgColor: { rgb: "4472C4" } },
+                            alignment: { horizontal: "center" }
+                        };
+                    }
+                }
+                
+                // Add worksheet to workbook
+                XLSX.utils.book_append_sheet(wb, ws, 'PEPCO-DC Rates');
+                
+                // Generate filename with current date
+                const date = new Date().toISOString().split('T')[0];
+                const filename = `PEPCO-DC_Rate_Schedule_${date}.xlsx`;
+                
+                // Write and download the file
+                const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+                const blob = new Blob([wbout], { type: 'application/octet-stream' });
+                
+                // Use FileSaver.js if available, otherwise fallback to direct download
+                if (typeof saveAs !== 'undefined') {
+                    saveAs(blob, filename);
+                } else {
+                    // Fallback method
+                    const url = window.URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+                }
+                
+                // Show success message
+                alert('Excel file downloaded successfully! 🎉');
+                
+            } catch (error) {
+                console.error('Download error:', error);
+                alert('Error downloading file. Please try again.');
+            }
+        }
+
+        // Calculate and display statistics
+        function calculateStats() {
+            const rows = document.querySelectorAll('#tableBody tr');
+            const rates = [];
+            
+            rows.forEach(row => {
+                const totalCell = row.querySelector('.total-column');
+                if (totalCell) {
+                    const rate = parseFloat(totalCell.textContent.replace(', ''));
+                    rates.push(rate);
+                }
+            });
+            
+            const avgRate = rates.reduce((a, b) => a + b, 0) / rates.length;
+            const highestRate = Math.max(...rates);
+            const lowestRate = Math.min(...rates);
+            
+            document.getElementById('totalSchedules').textContent = rates.length;
+            document.getElementById('avgRate').textContent = ' + avgRate.toFixed(5);
+            document.getElementById('highestRate').textContent = ' + highestRate.toFixed(5);
+            document.getElementById('lowestRate').textContent = ' + lowestRate.toFixed(5);
+        }
+        
+        // Initialize stats on page load
+        calculateStats();
+        
+        // Add smooth scrolling and animations
+        document.addEventListener('DOMContentLoaded', function() {
+            const rows = document.querySelectorAll('tbody tr');
+            rows.forEach((row, index) => {
+                row.style.animationDelay = `${index * 0.05}s`;
+                row.classList.add('fade-in');
+            });
+
+            // Add hover effects to feature cards
+            const featureCards = document.querySelectorAll('.feature-card');
+            featureCards.forEach(card => {
+                card.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateY(-8px) scale(1.02)';
+                });
+                card.addEventListener('mouseleave', function() {
+                    this.style.transform = 'translateY(0) scale(1)';
+                });
+            });
+
+            // Add click animation to download button
+            const downloadBtn = document.querySelector('.download-btn');
+            downloadBtn.addEventListener('click', function() {
+                this.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    this.style.transform = '';
+                }, 150);
+            });
+        });
+
+        // Add keyboard navigation
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'f') {
+                e.preventDefault();
+                document.getElementById('searchInput').focus();
+            }
+            if (e.ctrlKey && e.key === 'd') {
+                e.preventDefault();
+                downloadExcel();
+            }
+        });
+
+        // Error handling
+        window.addEventListener('error', function(e) {
+            console.error('An error occurred:', e.error);
+        });
+    </script>
+</body>
+</html>
