@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PEPCO-DC Rate Schedule Dashboard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -559,8 +558,8 @@
         
         <div class="main-content">
             <div class="controls">
-                <input type="text" class="search-box" placeholder="🔍 Search rate schedules..." id="searchInput">
-                <button class="download-btn pulse" onclick="downloadExcel()">
+                <input type="text" class="search-box" placeholder="🔍 Search rate schedules..." id="searchInput" onkeyup="searchSchedules()">
+                <button class="download-btn pulse" onclick="downloadToExcel()">
                     📊 Download Excel Report
                 </button>
             </div>
@@ -724,7 +723,7 @@
                     <div class="stat-label">Total Schedules</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-value" id="avgRate">$0.16</div>
+                    <div class="stat-value" id="avgRate">$0.16049</div>
                     <div class="stat-label">Average Total PTC</div>
                 </div>
                 <div class="stat-item">
@@ -738,11 +737,6 @@
             </div>
 
             <div class="feature-highlights">
-                <div class="feature-card">
-                    <div class="feature-icon">⚡</div>
-                    <div class="feature-title">Real-Time Analysis</div>
-                    <div class="feature-description">Dynamic rate comparison and cost analysis across all PEPCO-DC schedules with instant calculations.</div>
-                </div>
                 <div class="feature-card">
                     <div class="feature-icon">📊</div>
                     <div class="feature-title">Excel Export</div>
@@ -758,190 +752,73 @@
     </div>
 
     <script>
-        // Search functionality
-        document.getElementById('searchInput').addEventListener('input', function(e) {
-            const searchTerm = e.target.value.toLowerCase();
-            const rows = document.querySelectorAll('#tableBody tr');
-            
-            rows.forEach(row => {
-                const scheduleCell = row.querySelector('.schedule-name');
-                if (scheduleCell) {
-                    const scheduleName = scheduleCell.textContent.toLowerCase();
-                    if (scheduleName.includes(searchTerm)) {
-                        row.style.display = '';
-                        row.style.animation = 'fadeIn 0.5s ease';
+        function searchSchedules() {
+            var input = document.getElementById('searchInput');
+            var filter = input.value.toLowerCase();
+            var table = document.getElementById('rateTable');
+            var tr = table.getElementsByTagName('tr');
+
+            for (var i = 1; i < tr.length; i++) {
+                var td = tr[i].getElementsByTagName('td')[0];
+                if (td) {
+                    var txtValue = td.textContent || td.innerText;
+                    if (txtValue.toLowerCase().indexOf(filter) > -1) {
+                        tr[i].style.display = '';
                     } else {
-                        row.style.display = 'none';
+                        tr[i].style.display = 'none';
                     }
                 }
-            });
-        });
-
-        // Excel download functionality
-        function downloadExcel() {
-            try {
-                // Check if XLSX is loaded
-                if (typeof XLSX === 'undefined') {
-                    alert('Excel library is still loading. Please try again in a moment.');
-                    return;
-                }
-
-                // Create data array manually for better control
-                const data = [
-                    ['Zone PEPCO-DC Rate Schedule', 'Intermediate Charges', 'Admin Charges', 'Transmission Charges', 'Capacity Charges', 'Transmission Charges (Melissa Report)', 'Total PTC'],
-                    ['Schedule R', 0.12800, 0.00320, 0.01751, 0.01125, 0.00626, 0.16622],
-                    ['Schedule MMA', 0.12432, 0.00320, 0.01526, 0.01125, 0.00626, 0.16029],
-                    ['Schedule GS - ND', 0.12602, 0.00450, 0.01277, 0.01125, 0.00626, 0.16080],
-                    ['Schedule T', 0.12602, 0.00450, 0.01096, 0.01125, 0.00626, 0.15899],
-                    ['Schedule TS', 0.12602, 0.00450, 0.00763, 0.01125, 0.00626, 0.15566],
-                    ['Schedule TN', 0.12602, 0.00450, 0.00766, 0.01125, 0.00626, 0.15569],
-                    ['Schedule SL', 0.12602, 0.00450, 0.00000, 0.01125, 0.00626, 0.14803],
-                    ['Schedule OL-LED', 0.12602, 0.00450, 0.00000, 0.01125, 0.00626, 0.14803],
-                    ['Schedule GS – LV', 0.13314, 0.00400, 0.01275, 0.01125, 0.00626, 0.16740],
-                    ['Schedule GS 3A', 0.13314, 0.00400, 0.01170, 0.01125, 0.00626, 0.16635],
-                    ['Schedule GT LV', 0.13608, 0.00400, 0.00398, 0.01125, 0.00626, 0.16157],
-                    ['Schedule GT 3A', 0.14524, 0.00400, 0.00416, 0.01125, 0.00626, 0.17091],
-                    ['Schedule GT 3B', 0.14134, 0.00400, 0.00241, 0.01125, 0.00626, 0.16526],
-                    ['Schedule RT', 0.13766, 0.00400, 0.00501, 0.01125, 0.00626, 0.16418],
-                    ['Schedule MGT LV', 0.13608, 0.00400, 0.00399, 0.01125, 0.00626, 0.16158]
-                ];
-
-                // Create workbook and worksheet
-                const wb = XLSX.utils.book_new();
-                const ws = XLSX.utils.aoa_to_sheet(data);
-                
-                // Set column widths
-                ws['!cols'] = [
-                    { width: 25 }, // Schedule name
-                    { width: 18 }, // Intermediate charges
-                    { width: 15 }, // Admin charges
-                    { width: 18 }, // Transmission charges
-                    { width: 16 }, // Capacity charges
-                    { width: 28 }, // Transmission charges (Melissa)
-                    { width: 12 }  // Total PTC
-                ];
-
-                // Add some basic styling
-                const range = XLSX.utils.decode_range(ws['!ref']);
-                
-                // Style header row
-                for (let col = range.s.c; col <= range.e.c; col++) {
-                    const headerCell = ws[XLSX.utils.encode_cell({r: 0, c: col})];
-                    if (headerCell) {
-                        headerCell.s = {
-                            font: { bold: true, color: { rgb: "FFFFFF" } },
-                            fill: { fgColor: { rgb: "4472C4" } },
-                            alignment: { horizontal: "center" }
-                        };
-                    }
-                }
-                
-                // Add worksheet to workbook
-                XLSX.utils.book_append_sheet(wb, ws, 'PEPCO-DC Rates');
-                
-                // Generate filename with current date
-                const date = new Date().toISOString().split('T')[0];
-                const filename = `PEPCO-DC_Rate_Schedule_${date}.xlsx`;
-                
-                // Write and download the file
-                const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-                const blob = new Blob([wbout], { type: 'application/octet-stream' });
-                
-                // Use FileSaver.js if available, otherwise fallback to direct download
-                if (typeof saveAs !== 'undefined') {
-                    saveAs(blob, filename);
-                } else {
-                    // Fallback method
-                    const url = window.URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = filename;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    window.URL.revokeObjectURL(url);
-                }
-                
-                // Show success message
-                alert('Excel file downloaded successfully! 🎉');
-                
-            } catch (error) {
-                console.error('Download error:', error);
-                alert('Error downloading file. Please try again.');
             }
         }
 
-        // Calculate and display statistics
-        function calculateStats() {
-            const rows = document.querySelectorAll('#tableBody tr');
-            const rates = [];
-            
-            rows.forEach(row => {
-                const totalCell = row.querySelector('.total-column');
-                if (totalCell) {
-                    const rate = parseFloat(totalCell.textContent.replace(', ''));
-                    rates.push(rate);
-                }
-            });
-            
-            const avgRate = rates.reduce((a, b) => a + b, 0) / rates.length;
-            const highestRate = Math.max(...rates);
-            const lowestRate = Math.min(...rates);
-            
-            document.getElementById('totalSchedules').textContent = rates.length;
-            document.getElementById('avgRate').textContent = ' + avgRate.toFixed(5);
-            document.getElementById('highestRate').textContent = ' + highestRate.toFixed(5);
-            document.getElementById('lowestRate').textContent = ' + lowestRate.toFixed(5);
+        function downloadToExcel() {
+            if (typeof XLSX === 'undefined') {
+                alert('Excel library is loading. Please wait and try again.');
+                return;
+            }
+
+            var data = [
+                ['Zone PEPCO-DC Rate Schedule', 'Intermediate Charges', 'Admin Charges', 'Transmission Charges', 'Capacity Charges', 'Transmission Charges (Melissa Report)', 'Total PTC'],
+                ['Schedule R', 0.12800, 0.00320, 0.01751, 0.01125, 0.00626, 0.16622],
+                ['Schedule MMA', 0.12432, 0.00320, 0.01526, 0.01125, 0.00626, 0.16029],
+                ['Schedule GS - ND', 0.12602, 0.00450, 0.01277, 0.01125, 0.00626, 0.16080],
+                ['Schedule T', 0.12602, 0.00450, 0.01096, 0.01125, 0.00626, 0.15899],
+                ['Schedule TS', 0.12602, 0.00450, 0.00763, 0.01125, 0.00626, 0.15566],
+                ['Schedule TN', 0.12602, 0.00450, 0.00766, 0.01125, 0.00626, 0.15569],
+                ['Schedule SL', 0.12602, 0.00450, 0.00000, 0.01125, 0.00626, 0.14803],
+                ['Schedule OL-LED', 0.12602, 0.00450, 0.00000, 0.01125, 0.00626, 0.14803],
+                ['Schedule GS – LV', 0.13314, 0.00400, 0.01275, 0.01125, 0.00626, 0.16740],
+                ['Schedule GS 3A', 0.13314, 0.00400, 0.01170, 0.01125, 0.00626, 0.16635],
+                ['Schedule GT LV', 0.13608, 0.00400, 0.00398, 0.01125, 0.00626, 0.16157],
+                ['Schedule GT 3A', 0.14524, 0.00400, 0.00416, 0.01125, 0.00626, 0.17091],
+                ['Schedule GT 3B', 0.14134, 0.00400, 0.00241, 0.01125, 0.00626, 0.16526],
+                ['Schedule RT', 0.13766, 0.00400, 0.00501, 0.01125, 0.00626, 0.16418],
+                ['Schedule MGT LV', 0.13608, 0.00400, 0.00399, 0.01125, 0.00626, 0.16158]
+            ];
+
+            var ws = XLSX.utils.aoa_to_sheet(data);
+            var wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'PEPCO Rates');
+
+            var today = new Date();
+            var filename = 'PEPCO_Rate_Schedule_' + today.getFullYear() + '_' + (today.getMonth() + 1) + '_' + today.getDate() + '.xlsx';
+
+            XLSX.writeFile(wb, filename);
+            alert('Excel file downloaded successfully!');
         }
-        
-        // Initialize stats on page load
-        calculateStats();
-        
-        // Add smooth scrolling and animations
-        document.addEventListener('DOMContentLoaded', function() {
-            const rows = document.querySelectorAll('tbody tr');
-            rows.forEach((row, index) => {
-                row.style.animationDelay = `${index * 0.05}s`;
-                row.classList.add('fade-in');
-            });
 
-            // Add hover effects to feature cards
-            const featureCards = document.querySelectorAll('.feature-card');
-            featureCards.forEach(card => {
-                card.addEventListener('mouseenter', function() {
-                    this.style.transform = 'translateY(-8px) scale(1.02)';
-                });
-                card.addEventListener('mouseleave', function() {
-                    this.style.transform = 'translateY(0) scale(1)';
-                });
-            });
-
-            // Add click animation to download button
-            const downloadBtn = document.querySelector('.download-btn');
-            downloadBtn.addEventListener('click', function() {
-                this.style.transform = 'scale(0.95)';
-                setTimeout(() => {
-                    this.style.transform = '';
-                }, 150);
-            });
-        });
-
-        // Add keyboard navigation
-        document.addEventListener('keydown', function(e) {
-            if (e.ctrlKey && e.key === 'f') {
-                e.preventDefault();
-                document.getElementById('searchInput').focus();
+        window.onload = function() {
+            var rows = document.querySelectorAll('tbody tr');
+            for (var i = 0; i < rows.length; i++) {
+                rows[i].style.animationDelay = (i * 0.1) + 's';
+                rows[i].classList.add('fade-in');
             }
-            if (e.ctrlKey && e.key === 'd') {
-                e.preventDefault();
-                downloadExcel();
-            }
-        });
-
-        // Error handling
-        window.addEventListener('error', function(e) {
-            console.error('An error occurred:', e.error);
-        });
+        };
     </script>
 </body>
 </html>
+                    <div class="feature-icon">⚡</div>
+                    <div class="feature-title">Real-Time Analysis</div>
+                    <div class="feature-description">Dynamic rate comparison and cost analysis across all PEPCO-DC schedules with instant calculations.</div>
+                </div>
+                <div class="feature-card">
